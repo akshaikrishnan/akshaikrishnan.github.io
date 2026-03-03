@@ -1,4 +1,6 @@
 import { Text3D, Center } from "@react-three/drei";
+import PhysicsLettersText from "../PhysicsLettersText";
+import { BUBBLE_TITLE_FONT } from "../constants/fonts";
 import { RigidBody } from "@react-three/rapier";
 import { useFrame } from "@react-three/fiber";
 import { useRef } from "react";
@@ -60,7 +62,7 @@ function ServerRack({ position, rotation }: ServerRackProps) {
       {/* Label above rack */}
       <Center position={[0, 4.5, 0]}>
         <Text3D
-          font="https://raw.githubusercontent.com/mrdoob/three.js/master/examples/fonts/helvetiker_bold.typeface.json"
+          font={BUBBLE_TITLE_FONT}
           size={0.4}
           height={0.1}
         >
@@ -106,7 +108,7 @@ function AIEasel({
 
       <Center position={[0, 3.2, 0.2]}>
         <Text3D
-          font="https://raw.githubusercontent.com/mrdoob/three.js/master/examples/fonts/helvetiker_bold.typeface.json"
+          font={BUBBLE_TITLE_FONT}
           size={0.3}
           height={0.1}
         >
@@ -123,17 +125,13 @@ export default function LabZone() {
     <group position={[-20, 0, -30]}>
       {" "}
       {/* Spaced out to the back-right */}
-      {/* Zone Title */}
-      <Center position={[0, 1.5, 5]}>
-        <Text3D
-          font="https://raw.githubusercontent.com/mrdoob/three.js/master/examples/fonts/helvetiker_bold.typeface.json"
-          size={2}
-          height={0.5}
-        >
-          THE LAB
-          <meshStandardMaterial color="#10b981" />
-        </Text3D>
-      </Center>
+      <PhysicsLettersText
+        text="THE LAB"
+        position={[0, 1.3, 5]}
+        size={0.95}
+        height={0.25}
+        color="#10b981"
+      />
       {/* Floor pad for the lab */}
       <mesh position={[0, 0.05, -5]} rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[15, 15]} />

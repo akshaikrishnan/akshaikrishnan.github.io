@@ -1,4 +1,6 @@
 import { Text3D, Center } from "@react-three/drei";
+import PhysicsLettersText from "../PhysicsLettersText";
+import { BUBBLE_TITLE_FONT } from "../constants/fonts";
 import { RigidBody } from "@react-three/rapier";
 
 interface SignProps {
@@ -30,7 +32,7 @@ function SignPost({ position, company, role, duration, color }: SignProps) {
       {/* Company Name */}
       <Center position={[0, 5, 0.3]}>
         <Text3D
-          font="https://raw.githubusercontent.com/mrdoob/three.js/master/examples/fonts/helvetiker_bold.typeface.json"
+          font={BUBBLE_TITLE_FONT}
           size={0.6}
           height={0.1}
         >
@@ -42,7 +44,7 @@ function SignPost({ position, company, role, duration, color }: SignProps) {
       {/* Role */}
       <Center position={[0, 4, 0.3]}>
         <Text3D
-          font="https://raw.githubusercontent.com/mrdoob/three.js/master/examples/fonts/helvetiker_bold.typeface.json"
+          font={BUBBLE_TITLE_FONT}
           size={0.4}
           height={0.1}
         >
@@ -54,7 +56,7 @@ function SignPost({ position, company, role, duration, color }: SignProps) {
       {/* Duration */}
       <Center position={[0, 3.4, 0.3]}>
         <Text3D
-          font="https://raw.githubusercontent.com/mrdoob/three.js/master/examples/fonts/helvetiker_bold.typeface.json"
+          font={BUBBLE_TITLE_FONT}
           size={0.25}
           height={0.1}
         >
@@ -101,17 +103,13 @@ export default function ExperienceZone() {
     <group position={[50, 0, -20]}>
       {" "}
       {/* The highway stretches to the right */}
-      {/* Zone Title */}
-      <Center position={[-5, 1.5, 5]}>
-        <Text3D
-          font="https://raw.githubusercontent.com/mrdoob/three.js/master/examples/fonts/helvetiker_bold.typeface.json"
-          size={2}
-          height={0.5}
-        >
-          THE JOURNEY
-          <meshStandardMaterial color="#f97316" />
-        </Text3D>
-      </Center>
+      <PhysicsLettersText
+        text="THE JOURNEY"
+        position={[-5, 1.3, 5]}
+        size={0.95}
+        height={0.25}
+        color="#f97316"
+      />
       {/* The Road Strip (Visual only) */}
       <mesh
         position={[20, 0.05, 0]}
