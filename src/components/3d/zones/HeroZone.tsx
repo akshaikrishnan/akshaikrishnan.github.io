@@ -1,5 +1,5 @@
 import { Text3D, Center } from "@react-three/drei";
-import { RigidBody } from "@react-three/rapier";
+import { CuboidCollider, RigidBody } from "@react-three/rapier";
 import { useState } from "react";
 
 interface TriggerButtonProps {
@@ -13,20 +13,30 @@ interface TriggerButtonProps {
 function TriggerButton({ position, label, url, color }: TriggerButtonProps) {
   const [hovered, setHovered] = useState(false);
 
-  // Open link when car enters the sensor
-  const handleIntersectionEnter = () => {
-    window.open(url, "_blank");
+  const handleIntersectionEnter = (e: any) => {
+    //add hover class
+    setHovered(true);
+    // window.open(url, "_blank");
+  };
+
+  const handleIntersectionLeave = (e: any) => {
+    //remove hover class
+    setHovered(false);
   };
 
   return (
     <group position={position}>
-      {/* Sensor colliders are invisible but trigger events */}
-      <RigidBody
-        type="fixed"
-        colliders="cuboid"
-        sensor
-        onIntersectionEnter={handleIntersectionEnter}
-      >
+      {/* 2. Disable auto-colliders by setting colliders={false} */}
+      <RigidBody type="fixed" colliders={false}>
+        {/* 3. Add manual CuboidCollider. Args are HALF of your BoxGeometry [4/2, 0.2/2, 4/2] */}
+        <CuboidCollider
+          args={[2, 0.1, 2]}
+          position={[0, 0.1, 0]}
+          sensor
+          onIntersectionEnter={handleIntersectionEnter}
+          onIntersectionExit={handleIntersectionLeave}
+        />
+
         <mesh
           position={[0, 0.1, 0]}
           onPointerOver={() => setHovered(true)}
@@ -34,6 +44,11 @@ function TriggerButton({ position, label, url, color }: TriggerButtonProps) {
           onClick={() => window.open(url, "_blank")}
         >
           <boxGeometry args={[4, 0.2, 4]} />
+          {hovered ? (
+            <meshStandardMaterial color={color} emissive={color} />
+          ) : (
+            <meshStandardMaterial color={color} emissive={color} />
+          )}
           <meshStandardMaterial
             color={hovered ? "#ffffff" : color}
             emissive={hovered ? color : "#000000"}

@@ -6,6 +6,7 @@ export default function Ground() {
     <RigidBody
       type="fixed"
       colliders="cuboid"
+      position={[20, 0, 50]}
       // Friction is important for the car tires
       friction={1}
       restitution={0}

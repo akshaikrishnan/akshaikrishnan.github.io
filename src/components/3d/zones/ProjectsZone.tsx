@@ -107,7 +107,7 @@ export default function ProjectsZone() {
     <group position={[-30, 0, 20]}>
       {" "}
       {/* Spaced out to the back-left */}
-      <Center position={[0, 0.5, -10]}>
+      <Center position={[0, 1.5, -10]}>
         <Text3D
           font="https://raw.githubusercontent.com/mrdoob/three.js/master/examples/fonts/helvetiker_bold.typeface.json"
           size={2}

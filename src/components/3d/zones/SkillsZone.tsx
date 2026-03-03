@@ -1,5 +1,5 @@
 import { Text3D, Html, Center } from "@react-three/drei";
-import { RigidBody } from "@react-three/rapier";
+import { CuboidCollider, RigidBody } from "@react-three/rapier";
 import { useState } from "react";
 
 interface SkillArchProps {
@@ -53,13 +53,16 @@ function SkillArch({
       </Center>
 
       {/* Hidden Sensor Trigger inside the arch */}
-      <RigidBody
-        type="fixed"
-        colliders="cuboid"
-        sensor
-        onIntersectionEnter={() => setIsNear(true)}
-        onIntersectionExit={() => setIsNear(false)}
-      >
+      <RigidBody type="fixed" colliders={false}>
+        {/* Args are HALF of the BoxGeometry [4/2, 4/2, 2/2] */}
+        <CuboidCollider
+          args={[2, 2, 1]}
+          position={[0, 2, 0]}
+          sensor
+          onIntersectionEnter={() => setIsNear(true)}
+          onIntersectionExit={() => setIsNear(false)}
+        />
+
         <mesh position={[0, 2, 0]} visible={false}>
           <boxGeometry args={[4, 4, 2]} />
         </mesh>
@@ -92,10 +95,10 @@ function SkillArch({
 
 export default function SkillsZone() {
   return (
-    <group position={[20, 0, -20]}>
+    <group position={[20, 0, -30]}>
       {" "}
       {/* Spaced out from Hero */}
-      <Center position={[0, 0.5, 10]}>
+      <Center position={[0, 1.5, 10]}>
         <Text3D
           font="https://raw.githubusercontent.com/mrdoob/three.js/master/examples/fonts/helvetiker_bold.typeface.json"
           size={2}

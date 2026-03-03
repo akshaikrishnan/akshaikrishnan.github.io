@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 
 export default function LoadingScreen() {
   const { progress, active } = useProgress();
+  console.log(progress);
   const [visible, setVisible] = useState(true);
 
   useEffect(() => {

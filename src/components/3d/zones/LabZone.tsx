@@ -124,7 +124,7 @@ export default function LabZone() {
       {" "}
       {/* Spaced out to the back-right */}
       {/* Zone Title */}
-      <Center position={[0, 0.5, 5]}>
+      <Center position={[0, 1.5, 5]}>
         <Text3D
           font="https://raw.githubusercontent.com/mrdoob/three.js/master/examples/fonts/helvetiker_bold.typeface.json"
           size={2}

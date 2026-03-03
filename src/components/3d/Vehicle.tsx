@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import { RigidBody, RapierRigidBody } from "@react-three/rapier";
 import * as THREE from "three";
@@ -8,193 +8,242 @@ export default function Vehicle() {
   const vehicleRef = useRef<RapierRigidBody>(null);
   const getControls = useVehicleControls();
 
-  // Constants for vehicle tuning
-  const ENGINE_POWER = 15;
+  // Arcade Physics Constants
+  const MAX_SPEED = 15;
+  const ACCELERATION_SPEED = 5; // Higher = snappier start
   const STEERING_SPEED = 3;
-  const BRAKE_POWER = 2;
-  const JUMP_FORCE = 8;
+  const JUMP_FORCE = 15;
 
-  // We use a smoothed camera position so it doesn't jerk
-  // The camera will try to follow the vehicle from an isometric perspective
-  const [smoothedCameraPosition] = useState(
+  const smoothedCameraPosition = useMemo(
     () => new THREE.Vector3(10, 10, 10),
+    [],
   );
-  const [smoothedCameraTarget] = useState(() => new THREE.Vector3(0, 0, 0));
+  const smoothedCameraTarget = useMemo(() => new THREE.Vector3(0, 0, 0), []);
+
+  // Track speed independently for snappy arcade acceleration
+  const speedRef = useRef(0);
 
   useFrame((state, delta) => {
     if (!vehicleRef.current) return;
 
     const controls = getControls();
-
-    // Physics body calculations
     const body = vehicleRef.current;
-    const linerVelocity = body.linvel(); // Current velocity
 
-    // 1. Forward / Backward (Impulse applied relative to current rotation)
-    // Create a vector representing "forward" in local space
-    const forwardVector = new THREE.Vector3(0, 0, -1);
+    // Wake body up to prevent sleeping
+    if (Object.values(controls).some(Boolean)) {
+      body.wakeUp();
+    }
 
-    // Get the current rotation of the rigid body as a quaternion
+    // 1. ARCADE ACCELERATION (Snappy start)
+    if (controls.forward) {
+      speedRef.current = THREE.MathUtils.lerp(
+        speedRef.current,
+        MAX_SPEED,
+        delta * ACCELERATION_SPEED,
+      );
+    } else if (controls.backward) {
+      speedRef.current = THREE.MathUtils.lerp(
+        speedRef.current,
+        -MAX_SPEED,
+        delta * ACCELERATION_SPEED,
+      );
+    } else if (controls.brake) {
+      speedRef.current = THREE.MathUtils.lerp(speedRef.current, 0, delta * 10);
+    } else {
+      // Coasting to a natural stop
+      speedRef.current = THREE.MathUtils.lerp(speedRef.current, 0, delta * 2);
+    }
+
+    // 2. ARCADE STEERING
+    const isMovingBackward = speedRef.current < -0.1;
+    const steeringDirection = isMovingBackward ? -1 : 1;
+
+    // Only steer if moving
+    if (Math.abs(speedRef.current) > 0.5) {
+      if (controls.left) {
+        body.setAngvel(
+          { x: 0, y: STEERING_SPEED * steeringDirection, z: 0 },
+          true,
+        );
+      } else if (controls.right) {
+        body.setAngvel(
+          { x: 0, y: -STEERING_SPEED * steeringDirection, z: 0 },
+          true,
+        );
+      } else {
+        body.setAngvel({ x: 0, y: 0, z: 0 }, true);
+      }
+    } else {
+      body.setAngvel({ x: 0, y: 0, z: 0 }, true);
+    }
+
+    // 3. APPLY VELOCITY
     const quaternion = new THREE.Quaternion(
       body.rotation().x,
       body.rotation().y,
       body.rotation().z,
       body.rotation().w,
     );
+    const forwardVector = new THREE.Vector3(0, 0, -1)
+      .applyQuaternion(quaternion)
+      .normalize();
+    const currentLinvel = body.linvel();
 
-    // Apply the rotation to the forward vector
-    forwardVector.applyQuaternion(quaternion);
-    forwardVector.normalize();
+    // Override X and Z with our snappy speed, but keep Y for gravity/jumping
+    body.setLinvel(
+      {
+        x: forwardVector.x * speedRef.current,
+        y: currentLinvel.y,
+        z: forwardVector.z * speedRef.current,
+      },
+      true,
+    );
 
-    if (controls.forward) {
-      body.applyImpulse(
-        {
-          x: forwardVector.x * ENGINE_POWER * delta,
-          y: 0,
-          z: forwardVector.z * ENGINE_POWER * delta,
-        },
-        true,
-      );
-    }
-
-    if (controls.backward) {
-      body.applyImpulse(
-        {
-          x: -forwardVector.x * ENGINE_POWER * delta,
-          y: 0,
-          z: -forwardVector.z * ENGINE_POWER * delta,
-        },
-        true,
-      );
-    }
-
-    // 2. Steering (Torque applied on the Y axis)
-    // Only steer when we are moving to simulate real car mechanics roughly
-    const speed = Math.sqrt(linerVelocity.x ** 2 + linerVelocity.z ** 2);
-    const isMoving = speed > 0.5;
-
-    // Determine steering direction based on forward/backward movement
-    // If moving backward, invert steering
-    const isMovingBackward = controls.backward && !controls.forward;
-    const steeringMultiplier = isMovingBackward ? -1 : 1;
-
-    if (isMoving && controls.left) {
-      body.applyTorqueImpulse(
-        { x: 0, y: STEERING_SPEED * steeringMultiplier * delta, z: 0 },
-        true,
-      );
-    }
-
-    if (isMoving && controls.right) {
-      body.applyTorqueImpulse(
-        { x: 0, y: -STEERING_SPEED * steeringMultiplier * delta, z: 0 },
-        true,
-      );
-    }
-
-    // 3. Jump (Impulse up) - Basic check if close to ground based on Y velocity
-    if (controls.jump && Math.abs(linerVelocity.y) < 0.1) {
+    // 4. JUMP
+    if (controls.jump && Math.abs(currentLinvel.y) < 0.1) {
       body.applyImpulse({ x: 0, y: JUMP_FORCE, z: 0 }, true);
     }
 
-    // 4. Brakes (Apply dampening force opposite to velocity)
-    if (controls.brake) {
-      body.applyImpulse(
-        {
-          x: -linerVelocity.x * BRAKE_POWER * delta,
-          y: 0,
-          z: -linerVelocity.z * BRAKE_POWER * delta,
-        },
-        true,
-      );
-    }
-
     // --- CAMERA FOLLOW LOGIC ---
-
-    // Get current vehicle position
     const carPosition = body.translation();
     const posVector = new THREE.Vector3(
       carPosition.x,
       carPosition.y,
       carPosition.z,
     );
-
-    // Desired camera position: behind and above the car (isometric-ish angle)
     const cameraOffset = new THREE.Vector3(12, 12, 12);
     const targetCameraPosition = posVector.clone().add(cameraOffset);
 
-    // Smoothly interpolate the camera position
-    smoothedCameraPosition.lerp(targetCameraPosition, 5 * delta);
-    // Smoothly interpolate where the camera looks (slightly ahead of the car)
-    smoothedCameraTarget.lerp(posVector, 5 * delta);
+    // CRITICAL FIX: Math.min limits the lerp factor.
+    // Without this, tab switching makes delta huge, causing the camera to shoot to infinity (Blue Screen bug)
+    const lerpFactor = Math.min(5 * delta, 1);
 
-    // Apply to Three.js camera
+    smoothedCameraPosition.lerp(targetCameraPosition, lerpFactor);
+    smoothedCameraTarget.lerp(posVector, lerpFactor);
+
     state.camera.position.copy(smoothedCameraPosition);
     state.camera.lookAt(smoothedCameraTarget);
   });
+
+  const Wheel = ({
+    position,
+    isLeft,
+  }: {
+    position: [number, number, number];
+    isLeft: boolean;
+  }) => (
+    <group position={position}>
+      {/* Black Tire */}
+      <mesh rotation={[0, 0, Math.PI / 2]} castShadow>
+        <cylinderGeometry args={[0.35, 0.35, 0.25, 32]} />
+        <meshStandardMaterial color="#111111" roughness={0.9} />
+      </mesh>
+      {/* Metallic Rim */}
+      <mesh
+        rotation={[0, 0, Math.PI / 2]}
+        position={[isLeft ? -0.13 : 0.13, 0, 0]}
+      >
+        <cylinderGeometry args={[0.2, 0.2, 0.05, 16]} />
+        <meshStandardMaterial color="#aaaaaa" metalness={0.8} roughness={0.2} />
+      </mesh>
+    </group>
+  );
 
   return (
     <RigidBody
       ref={vehicleRef}
       colliders="cuboid"
-      // Mass properties
-      mass={2}
-      // Linear damping helps the car come to a stop naturally when releasing gas
-      linearDamping={2.0}
-      // Angular damping stops it from spinning infinitely
-      angularDamping={3.0}
-      // Very important: prevent the car from flipping over by ignoring X and Z rotation physics
+      friction={0} // No friction needed since we manually set velocity
       enabledRotations={[false, true, false]}
-      position={[0, 0.5, 0]}
+      position={[0, 100.0, 0]}
     >
-      <group>
-        {/* Placeholder Car Body */}
+      <group position={[0, -0.2, 0]}>
+        {/* Chassis / Lower Body */}
         <mesh position={[0, 0.4, 0]} castShadow receiveShadow>
-          <boxGeometry args={[1.5, 0.8, 3]} />
-          <meshStandardMaterial color="indianred" />
-        </mesh>
-
-        {/* Cabin */}
-        <mesh position={[0, 0.9, -0.2]} castShadow receiveShadow>
-          <boxGeometry args={[1.3, 0.5, 1.5]} />
-          <meshStandardMaterial color="darkred" />
-        </mesh>
-
-        {/* Wheels Placeholder */}
-        <mesh position={[-0.8, 0.2, 1]} castShadow>
-          <cylinderGeometry args={[0.3, 0.3, 0.2]} />
-          <meshStandardMaterial color="#333" />
-        </mesh>
-        <mesh position={[0.8, 0.2, 1]} castShadow>
-          <cylinderGeometry args={[0.3, 0.3, 0.2]} />
-          <meshStandardMaterial color="#333" />
-        </mesh>
-        <mesh position={[-0.8, 0.2, -1]} castShadow>
-          <cylinderGeometry args={[0.3, 0.3, 0.2]} />
-          <meshStandardMaterial color="#333" />
-        </mesh>
-        <mesh position={[0.8, 0.2, -1]} castShadow>
-          <cylinderGeometry args={[0.3, 0.3, 0.2]} />
-          <meshStandardMaterial color="#333" />
-        </mesh>
-
-        {/* Headlights indication for orientation */}
-        <mesh position={[-0.5, 0.5, -1.51]}>
-          <planeGeometry args={[0.3, 0.2]} />
+          <boxGeometry args={[1.6, 0.3, 3.4]} />
           <meshStandardMaterial
-            color="yellow"
-            emissive="yellow"
+            color="#1a1a1a"
+            metalness={0.7}
+            roughness={0.3}
+          />
+        </mesh>
+
+        {/* Upper Body / Cabin (Glassy look) */}
+        <mesh position={[0, 0.7, -0.2]} castShadow receiveShadow>
+          <boxGeometry args={[1.2, 0.4, 1.5]} />
+          <meshStandardMaterial
+            color="#000000"
+            metalness={0.9}
+            roughness={0.1}
+          />
+        </mesh>
+
+        {/* Neon Side Accents (Tron style) */}
+        <mesh position={[-0.81, 0.3, 0]}>
+          <boxGeometry args={[0.02, 0.05, 2.5]} />
+          <meshStandardMaterial
+            color="#00ffcc"
+            emissive="#00ffcc"
             emissiveIntensity={2}
           />
         </mesh>
-        <mesh position={[0.5, 0.5, -1.51]}>
-          <planeGeometry args={[0.3, 0.2]} />
+        <mesh position={[0.81, 0.3, 0]}>
+          <boxGeometry args={[0.02, 0.05, 2.5]} />
           <meshStandardMaterial
-            color="yellow"
-            emissive="yellow"
+            color="#00ffcc"
+            emissive="#00ffcc"
             emissiveIntensity={2}
           />
         </mesh>
+
+        {/* Tail lights (Neon Red) */}
+        <mesh position={[0, 0.45, 1.71]}>
+          <boxGeometry args={[1.2, 0.08, 0.02]} />
+          <meshStandardMaterial
+            color="#ff0055"
+            emissive="#ff0055"
+            emissiveIntensity={4}
+          />
+        </mesh>
+
+        {/* Headlights (Neon White/Blue) */}
+        <mesh position={[-0.6, 0.4, -1.71]}>
+          <boxGeometry args={[0.3, 0.1, 0.02]} />
+          <meshStandardMaterial
+            color="#e0f2fe"
+            emissive="#e0f2fe"
+            emissiveIntensity={4}
+          />
+        </mesh>
+        <mesh position={[0.6, 0.4, -1.71]}>
+          <boxGeometry args={[0.3, 0.1, 0.02]} />
+          <meshStandardMaterial
+            color="#e0f2fe"
+            emissive="#e0f2fe"
+            emissiveIntensity={4}
+          />
+        </mesh>
+
+        {/* Sports Spoiler */}
+        <mesh position={[0, 0.9, 1.5]} castShadow>
+          <boxGeometry args={[1.5, 0.05, 0.4]} />
+          <meshStandardMaterial color="#1a1a1a" />
+        </mesh>
+        {/* Spoiler Struts */}
+        <mesh position={[-0.5, 0.7, 1.5]} castShadow>
+          <boxGeometry args={[0.05, 0.4, 0.1]} />
+          <meshStandardMaterial color="#1a1a1a" />
+        </mesh>
+        <mesh position={[0.5, 0.7, 1.5]} castShadow>
+          <boxGeometry args={[0.05, 0.4, 0.1]} />
+          <meshStandardMaterial color="#1a1a1a" />
+        </mesh>
+
+        {/* 4 Wheels */}
+        <Wheel position={[-0.9, 0.3, -1.1]} isLeft={true} />
+        <Wheel position={[0.9, 0.3, -1.1]} isLeft={false} />
+        <Wheel position={[-0.9, 0.3, 1.2]} isLeft={true} />
+        <Wheel position={[0.9, 0.3, 1.2]} isLeft={false} />
       </group>
     </RigidBody>
   );

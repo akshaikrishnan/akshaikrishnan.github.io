@@ -102,7 +102,7 @@ export default function ExperienceZone() {
       {" "}
       {/* The highway stretches to the right */}
       {/* Zone Title */}
-      <Center position={[-5, 0.5, 5]}>
+      <Center position={[-5, 1.5, 5]}>
         <Text3D
           font="https://raw.githubusercontent.com/mrdoob/three.js/master/examples/fonts/helvetiker_bold.typeface.json"
           size={2}
