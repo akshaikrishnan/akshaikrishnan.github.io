@@ -1,8 +1,10 @@
-import { Text3D, Center } from "@react-three/drei";
+import { Text3D } from "@react-three/drei";
 import { RigidBody } from "@react-three/rapier";
 import { useFrame } from "@react-three/fiber";
 import { useRef, useState } from "react";
 import * as THREE from "three";
+import PhysicsLettersText from "../PhysicsLettersText";
+import { BUBBLE_TITLE_FONT } from "../constants/fonts";
 
 interface KioskProps {
   position: [number, number, number];
@@ -15,7 +17,6 @@ function ProjectKiosk({ position, title, techStack, color }: KioskProps) {
   const meshRef = useRef<THREE.Group>(null);
   const [hovered, setHovered] = useState(false);
 
-  // Make the top part of the kiosk spin slowly
   useFrame((_, delta) => {
     if (meshRef.current) {
       meshRef.current.rotation.y += delta * 0.5;
@@ -24,7 +25,6 @@ function ProjectKiosk({ position, title, techStack, color }: KioskProps) {
 
   return (
     <group position={position}>
-      {/* Physical Base */}
       <RigidBody type="fixed" colliders="hull">
         <mesh position={[0, 1, 0]} castShadow receiveShadow>
           <cylinderGeometry args={[2, 2.5, 2]} />
@@ -32,9 +32,7 @@ function ProjectKiosk({ position, title, techStack, color }: KioskProps) {
         </mesh>
       </RigidBody>
 
-      {/* Spinning Display Area */}
       <group ref={meshRef} position={[0, 3, 0]}>
-        {/* Floating Hologram Base */}
         <mesh>
           <octahedronGeometry args={[1.5]} />
           <meshStandardMaterial
@@ -52,49 +50,34 @@ function ProjectKiosk({ position, title, techStack, color }: KioskProps) {
           onIntersectionEnter={() => setHovered(true)}
           onIntersectionExit={() => setHovered(false)}
         >
-          {/* Invisible trigger to expand details */}
           <mesh visible={false}>
             <boxGeometry args={[6, 6, 6]} />
           </mesh>
         </RigidBody>
 
-        {/* Floating Title (Always visible) */}
         {!hovered && (
-          <Center position={[0, 2, 0]}>
-            <Text3D
-              font="https://raw.githubusercontent.com/mrdoob/three.js/master/examples/fonts/helvetiker_bold.typeface.json"
-              size={0.4}
-              height={0.1}
-            >
+          <group position={[-title.length * 0.12, 2, 0]}>
+            <Text3D font={BUBBLE_TITLE_FONT} size={0.4} height={0.1}>
               {title}
               <meshStandardMaterial color="white" />
             </Text3D>
-          </Center>
+          </group>
         )}
 
-        {/* Hovered Details */}
         {hovered && (
           <group position={[0, 2, 0]}>
-            <Center position={[0, 0, 0]}>
-              <Text3D
-                font="https://raw.githubusercontent.com/mrdoob/three.js/master/examples/fonts/helvetiker_bold.typeface.json"
-                size={0.5}
-                height={0.1}
-              >
+            <group position={[-title.length * 0.15, 0, 0]}>
+              <Text3D font={BUBBLE_TITLE_FONT} size={0.5} height={0.1}>
                 {title}
                 <meshStandardMaterial color="#60a5fa" />
               </Text3D>
-            </Center>
-            <Center position={[0, -0.8, 0]}>
-              <Text3D
-                font="https://raw.githubusercontent.com/mrdoob/three.js/master/examples/fonts/helvetiker_bold.typeface.json"
-                size={0.3}
-                height={0.1}
-              >
+            </group>
+            <group position={[-techStack.length * 0.09, -0.8, 0]}>
+              <Text3D font={BUBBLE_TITLE_FONT} size={0.3} height={0.1}>
                 {techStack}
                 <meshStandardMaterial color="#94a3b8" />
               </Text3D>
-            </Center>
+            </group>
           </group>
         )}
       </group>
@@ -105,19 +88,14 @@ function ProjectKiosk({ position, title, techStack, color }: KioskProps) {
 export default function ProjectsZone() {
   return (
     <group position={[-30, 0, 20]}>
-      {" "}
-      {/* Spaced out to the back-left */}
-      <Center position={[0, 1.5, -10]}>
-        <Text3D
-          font="https://raw.githubusercontent.com/mrdoob/three.js/master/examples/fonts/helvetiker_bold.typeface.json"
-          size={2}
-          height={0.5}
-        >
-          PROJECTS
-          <meshStandardMaterial color="#ef4444" />
-        </Text3D>
-      </Center>
-      {/* Triangular placement of kiosks */}
+      <PhysicsLettersText
+        text="PROJECTS"
+        position={[0, 1.3, -10]}
+        size={0.95}
+        height={0.25}
+        color="#ef4444"
+      />
+
       <ProjectKiosk
         position={[0, 0, 0]}
         title="UAE Supermarket E-Com"
